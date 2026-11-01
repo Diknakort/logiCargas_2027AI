@@ -1,0 +1,20 @@
+[
+  {
+    "id": "usr-admin-diego",
+    "username": "Diego",
+    "fullName": "Diego (Administrador)",
+    "role": "admin",
+    "password": "1yo1",
+    "createdAt": "2026-10-29T07:20:26.094Z",
+    "lastLogin": "2026-10-29T07:34:33.511Z"
+  },
+  {
+    "id": "usr-user-normal",
+    "username": "user",
+    "fullName": "Operador Logístico",
+    "role": "user",
+    "password": "1234",
+    "createdAt": "2026-10-29T07:20:26.095Z",
+    "lastLogin": "2026-10-29T07:34:37.342Z"
+  }
+]

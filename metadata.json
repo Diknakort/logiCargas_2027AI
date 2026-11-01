@@ -1,0 +1,6 @@
+{
+  "name": "LogiRuta - Gestión de Rutas, Códigos y Muelles",
+  "description": "Sistema de gestión logística interna para consulta ágil de rutas de reparto, generación instantánea de códigos de barras y QR para operadores, y localización precisa de muelles de carga.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
