@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Middleware for parsing JSON and large payloads (e.g. base64 images or excel sheets)
 app.use(express.json({ limit: '50mb' }));
@@ -97,6 +97,8 @@ interface ServerUser {
   username: string;
   fullName: string;
   role: string;
+  allowedSections?: string[];
+  customRoleName?: string;
   password?: string;
   createdAt: string;
   lastLogin?: string;
@@ -109,6 +111,8 @@ const DEFAULT_USERS: ServerUser[] = [
     username: 'Diego',
     fullName: 'Diego (Administrador)',
     role: 'admin',
+    customRoleName: 'Administrador Principal',
+    allowedSections: ['dashboard', 'envios', 'desubicar', 'entreplanta', 'impresoras', 'map', 'zones'],
     password: '1yo1',
     createdAt: new Date().toISOString(),
   },
@@ -117,6 +121,8 @@ const DEFAULT_USERS: ServerUser[] = [
     username: 'user',
     fullName: 'Operador Logístico',
     role: 'user',
+    customRoleName: 'Operador Polivalente',
+    allowedSections: ['dashboard', 'envios', 'desubicar', 'entreplanta', 'impresoras', 'map', 'zones'],
     password: '1234',
     createdAt: new Date().toISOString(),
   },
@@ -619,7 +625,7 @@ app.get('/api/users', (req, res) => {
 });
 
 app.post('/api/users', (req, res) => {
-  const { username, fullName, role, password } = req.body;
+  const { username, fullName, role, password, allowedSections, customRoleName } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Nombre de usuario y contraseña son requeridos' });
   }
@@ -632,11 +638,18 @@ app.post('/api/users', (req, res) => {
     return res.status(400).json({ error: `El usuario "${username}" ya existe` });
   }
 
-  const newUser = {
+  const defaultAllSections = ['dashboard', 'envios', 'desubicar', 'entreplanta', 'impresoras', 'map', 'zones'];
+  const userAllowed = Array.isArray(allowedSections) && allowedSections.length > 0
+    ? allowedSections
+    : defaultAllSections;
+
+  const newUser: ServerUser = {
     id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     username: username.trim(),
     fullName: fullName ? fullName.trim() : username.trim(),
-    role: role === 'admin' ? 'admin' : 'user',
+    role: role === 'admin' ? 'admin' : (role || 'user'),
+    customRoleName: customRoleName ? customRoleName.trim() : (role === 'admin' ? 'Administrador' : 'Operador'),
+    allowedSections: role === 'admin' ? defaultAllSections : userAllowed,
     password: String(password).trim(),
     createdAt: new Date().toISOString(),
   };
@@ -650,7 +663,7 @@ app.post('/api/users', (req, res) => {
 
 app.put('/api/users/:id', (req, res) => {
   const { id } = req.params;
-  const { username, fullName, role, password } = req.body;
+  const { username, fullName, role, password, allowedSections, customRoleName } = req.body;
 
   const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
   const userIndex = users.findIndex((u) => u.id === id);
@@ -673,12 +686,20 @@ app.put('/api/users/:id', (req, res) => {
     users[userIndex].fullName = fullName.trim();
   }
 
-  if (role && (role === 'admin' || role === 'user')) {
+  if (role) {
     // Prevent demoting Diego if he is the main admin
     if (users[userIndex].username.toLowerCase() === 'diego' && role !== 'admin') {
       return res.status(400).json({ error: 'El usuario Diego debe mantener el rol de administrador principal' });
     }
     users[userIndex].role = role;
+  }
+
+  if (allowedSections !== undefined && Array.isArray(allowedSections)) {
+    users[userIndex].allowedSections = allowedSections;
+  }
+
+  if (customRoleName !== undefined) {
+    users[userIndex].customRoleName = customRoleName.trim();
   }
 
   if (password) {

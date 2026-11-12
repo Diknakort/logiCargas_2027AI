@@ -18,7 +18,7 @@ import { EnviosView } from './components/EnviosView';
 import { DesubicarView } from './components/DesubicarView';
 import { EntreplantaView } from './components/EntreplantaView';
 import { ImpresorasView } from './components/ImpresorasView';
-import { RouteItem, SyncConfig, AppUser, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem, EntreplantaItem } from './types/logistics';
+import { RouteItem, SyncConfig, AppUser, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem, EntreplantaItem, isUserSectionAllowed, ALL_APP_SECTIONS } from './types/logistics';
 import { INITIAL_ROUTES } from './data/initialData';
 import { REAL_WAREHOUSE_ZONES } from './data/warehouseMapData';
 import { apiClient, DEFAULT_ENVIOS_FALLBACK } from './services/apiClient';
@@ -244,6 +244,16 @@ export default function App() {
       });
     }
   }, [currentSection, activeView]);
+
+  // Ensure the active view is permitted for the current user; if not, route to their first allowed view
+  useEffect(() => {
+    if (currentUser && !isUserSectionAllowed(currentUser, activeView)) {
+      const firstAllowed = ALL_APP_SECTIONS.find((s) => isUserSectionAllowed(currentUser, s.id));
+      if (firstAllowed) {
+        setActiveView(firstAllowed.id);
+      }
+    }
+  }, [currentUser, activeView]);
 
   // Save sync config
   useEffect(() => {
@@ -686,91 +696,105 @@ export default function App() {
         </div>
       </footer>
 
-      {/* MOBILE STICKY BOTTOM NAVIGATION BAR FOR OPERATORS */}
+      {/* MOBILE STICKY BOTTOM NAVIGATION BAR FOR OPERATORS (FILTERED BY USER PERMISSIONS) */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 border-t border-slate-800 backdrop-blur-lg px-1 py-1 flex items-center justify-around shadow-2xl">
-        <button
-          onClick={() => setActiveView('dashboard')}
-          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
-            activeView === 'dashboard'
-              ? 'text-amber-400 font-bold bg-amber-500/10'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Barcode className="w-4 h-4 mb-0.5" />
-          <span className="text-[9px]">Escáner</span>
-        </button>
+        {isUserSectionAllowed(currentUser, 'dashboard') && (
+          <button
+            onClick={() => setActiveView('dashboard')}
+            className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
+              activeView === 'dashboard'
+                ? 'text-amber-400 font-bold bg-amber-500/10'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Barcode className="w-4 h-4 mb-0.5" />
+            <span className="text-[9px]">Escáner</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveView('envios')}
-          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
-            activeView === 'envios'
-              ? 'text-amber-400 font-bold bg-amber-500/10'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Boxes className="w-4 h-4 mb-0.5" />
-          <span className="text-[9px]">Envíos</span>
-        </button>
+        {isUserSectionAllowed(currentUser, 'envios') && (
+          <button
+            onClick={() => setActiveView('envios')}
+            className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
+              activeView === 'envios'
+                ? 'text-amber-400 font-bold bg-amber-500/10'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Boxes className="w-4 h-4 mb-0.5" />
+            <span className="text-[9px]">Envíos</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveView('desubicar')}
-          className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
-            activeView === 'desubicar'
-              ? 'text-amber-400 font-bold bg-amber-500/10'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <PackageMinus className="w-4 h-4 mb-0.5" />
-          <span className="text-[9px]">Desubicar</span>
-        </button>
+        {isUserSectionAllowed(currentUser, 'desubicar') && (
+          <button
+            onClick={() => setActiveView('desubicar')}
+            className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
+              activeView === 'desubicar'
+                ? 'text-amber-400 font-bold bg-amber-500/10'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <PackageMinus className="w-4 h-4 mb-0.5" />
+            <span className="text-[9px]">Desubicar</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveView('entreplanta')}
-          className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
-            activeView === 'entreplanta'
-              ? 'text-amber-400 font-bold bg-amber-500/10'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Building2 className="w-4 h-4 mb-0.5" />
-          <span className="text-[9px]">Entreplanta</span>
-        </button>
+        {isUserSectionAllowed(currentUser, 'entreplanta') && (
+          <button
+            onClick={() => setActiveView('entreplanta')}
+            className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
+              activeView === 'entreplanta'
+                ? 'text-amber-400 font-bold bg-amber-500/10'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Building2 className="w-4 h-4 mb-0.5" />
+            <span className="text-[9px]">Entreplanta</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveView('impresoras')}
-          className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
-            activeView === 'impresoras'
-              ? 'text-amber-400 font-bold bg-amber-500/10'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Printer className="w-4 h-4 mb-0.5" />
-          <span className="text-[9px]">Impresoras</span>
-        </button>
+        {isUserSectionAllowed(currentUser, 'impresoras') && (
+          <button
+            onClick={() => setActiveView('impresoras')}
+            className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
+              activeView === 'impresoras'
+                ? 'text-amber-400 font-bold bg-amber-500/10'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Printer className="w-4 h-4 mb-0.5" />
+            <span className="text-[9px]">Impresoras</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveView('map')}
-          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
-            activeView === 'map'
-              ? 'text-amber-400 font-bold bg-amber-500/10'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <MapPin className="w-4 h-4 mb-0.5" />
-          <span className="text-[9px]">Muelles</span>
-        </button>
+        {isUserSectionAllowed(currentUser, 'map') && (
+          <button
+            onClick={() => setActiveView('map')}
+            className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
+              activeView === 'map'
+                ? 'text-amber-400 font-bold bg-amber-500/10'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MapPin className="w-4 h-4 mb-0.5" />
+            <span className="text-[9px]">Muelles</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveView('zones')}
-          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
-            activeView === 'zones'
-              ? 'text-amber-400 font-bold bg-amber-500/10'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Layers className="w-4 h-4 mb-0.5" />
-          <span className="text-[9px]">Zonas</span>
-        </button>
+        {isUserSectionAllowed(currentUser, 'zones') && (
+          <button
+            onClick={() => setActiveView('zones')}
+            className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
+              activeView === 'zones'
+                ? 'text-amber-400 font-bold bg-amber-500/10'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Layers className="w-4 h-4 mb-0.5" />
+            <span className="text-[9px]">Zonas</span>
+          </button>
+        )}
       </nav>
 
       {/* MODALS */}

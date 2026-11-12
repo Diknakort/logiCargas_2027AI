@@ -11,7 +11,7 @@ import {
   Plus,
   Boxes
 } from 'lucide-react';
-import { SyncConfig, AppUser } from '../types/logistics';
+import { SyncConfig, AppUser, isUserSectionAllowed } from '../types/logistics';
 import { ShieldCheck, LogOut, Settings, PackageMinus, Building2, Printer } from 'lucide-react';
 
 interface HeaderProps {
@@ -78,105 +78,125 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Navigation Tabs (Mobile scrollable / wrapping) */}
+          {/* Navigation Tabs (Filtered according to user role and allowed sections) */}
           <div className="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 self-start md:self-center overflow-x-auto max-w-full">
-            <button
-              onClick={() => setActiveView('dashboard')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeView === 'dashboard'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Barcode className="w-4 h-4" />
-              <span>Escáner y Rutas</span>
-            </button>
-            <button
-              onClick={() => setActiveView('envios')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeView === 'envios'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Boxes className="w-4 h-4" />
-              <span>Envíos</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                activeView === 'envios' ? 'bg-slate-950 text-amber-400' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              }`}>
-                QR
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveView('desubicar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeView === 'desubicar'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <PackageMinus className="w-4 h-4" />
-              <span>DESUBICAR</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                activeView === 'desubicar' ? 'bg-slate-950 text-amber-400' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-              }`}>
-                Barras
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveView('entreplanta')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeView === 'entreplanta'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Entreplanta</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                activeView === 'entreplanta' ? 'bg-slate-950 text-amber-400' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-              }`}>
-                Piso 1
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveView('impresoras')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeView === 'impresoras'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Printer className="w-4 h-4" />
-              <span>Impresoras</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                activeView === 'impresoras' ? 'bg-slate-950 text-amber-400' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-              }`}>
-                WiFi
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveView('map')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeView === 'map'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              <span>Mapa de Muelles</span>
-            </button>
-            <button
-              onClick={() => setActiveView('zones')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeView === 'zones'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>Zonas ({totalZones})</span>
-            </button>
+            {isUserSectionAllowed(currentUser, 'dashboard') && (
+              <button
+                onClick={() => setActiveView('dashboard')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeView === 'dashboard'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <Barcode className="w-4 h-4" />
+                <span>Escáner y Rutas</span>
+              </button>
+            )}
+
+            {isUserSectionAllowed(currentUser, 'envios') && (
+              <button
+                onClick={() => setActiveView('envios')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeView === 'envios'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <Boxes className="w-4 h-4" />
+                <span>Envíos</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeView === 'envios' ? 'bg-slate-950 text-amber-400' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                }`}>
+                  QR
+                </span>
+              </button>
+            )}
+
+            {isUserSectionAllowed(currentUser, 'desubicar') && (
+              <button
+                onClick={() => setActiveView('desubicar')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeView === 'desubicar'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <PackageMinus className="w-4 h-4" />
+                <span>DESUBICAR</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeView === 'desubicar' ? 'bg-slate-950 text-amber-400' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                }`}>
+                  Barras
+                </span>
+              </button>
+            )}
+
+            {isUserSectionAllowed(currentUser, 'entreplanta') && (
+              <button
+                onClick={() => setActiveView('entreplanta')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeView === 'entreplanta'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Entreplanta</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeView === 'entreplanta' ? 'bg-slate-950 text-amber-400' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                }`}>
+                  Piso 1
+                </span>
+              </button>
+            )}
+
+            {isUserSectionAllowed(currentUser, 'impresoras') && (
+              <button
+                onClick={() => setActiveView('impresoras')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeView === 'impresoras'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <Printer className="w-4 h-4" />
+                <span>Impresoras</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeView === 'impresoras' ? 'bg-slate-950 text-amber-400' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                }`}>
+                  WiFi
+                </span>
+              </button>
+            )}
+
+            {isUserSectionAllowed(currentUser, 'map') && (
+              <button
+                onClick={() => setActiveView('map')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeView === 'map'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <MapPin className="w-4 h-4" />
+                <span>Mapa de Muelles</span>
+              </button>
+            )}
+
+            {isUserSectionAllowed(currentUser, 'zones') && (
+              <button
+                onClick={() => setActiveView('zones')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeView === 'zones'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Zonas ({totalZones})</span>
+              </button>
+            )}
           </div>
 
           {/* Quick Metrics & Sync Status */}

@@ -1,4 +1,4 @@
-import { AppUser, RouteItem, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem, EntreplantaItem } from '../types/logistics';
+import { AppUser, RouteItem, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem, EntreplantaItem, AppSection } from '../types/logistics';
 import { REAL_WAREHOUSE_ZONES } from '../data/warehouseMapData';
 import { INITIAL_ROUTES } from '../data/initialData';
 import { DEFAULT_UBICACIONES } from '../data/ubicacionesData';
@@ -142,7 +142,14 @@ export const apiClient = {
     return DEFAULT_USERS_FALLBACK;
   },
 
-  async createUser(userData: { username: string; fullName: string; role: 'admin' | 'user'; password: string }): Promise<AppUser> {
+  async createUser(userData: { 
+    username: string; 
+    fullName: string; 
+    role: 'admin' | 'user' | string; 
+    password: string;
+    allowedSections?: AppSection[];
+    customRoleName?: string;
+  }): Promise<AppUser> {
     const res = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

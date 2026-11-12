@@ -5,7 +5,9 @@ import {
   WarehouseZoneArea, 
   MapConfig, 
   SyncConfig,
-  EnvioItem 
+  EnvioItem,
+  AppSection,
+  ALL_APP_SECTIONS
 } from '../types/logistics';
 import { apiClient } from '../services/apiClient';
 import { parseExcelOrCsv, matchZoneToWarehouseArea } from '../services/sheetSyncService';
@@ -39,7 +41,14 @@ import {
   ExternalLink,
   Info,
   Boxes,
-  QrCode
+  QrCode,
+  CheckSquare,
+  Square,
+  Sparkles,
+  PackageMinus,
+  Building2,
+  Printer,
+  Barcode
 } from 'lucide-react';
 import { ENHANCED_WAREHOUSE_MAP_IMAGE, ORIGINAL_WAREHOUSE_PHOTO } from '../data/warehouseMapData';
 
@@ -140,9 +149,57 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
 
+  const ALL_SECTION_KEYS: AppSection[] = ['dashboard', 'envios', 'desubicar', 'entreplanta', 'impresoras', 'map', 'zones'];
+
+  const ROLE_TEMPLATES: {
+    id: string;
+    label: string;
+    roleName: string;
+    sections: AppSection[];
+    desc: string;
+  }[] = [
+    {
+      id: 'all',
+      label: '🌟 Acceso Total',
+      roleName: 'Operador Polivalente',
+      sections: ALL_SECTION_KEYS,
+      desc: 'Acceso a las 7 secciones del almacén',
+    },
+    {
+      id: 'envios',
+      label: '📦 Solo Envíos',
+      roleName: 'Operador de Envíos',
+      sections: ['envios'],
+      desc: 'Solo accesos rápidos QR de envíos',
+    },
+    {
+      id: 'ubicaciones',
+      label: '🏷️ Desubicar y Entreplanta',
+      roleName: 'Operador de Ubicaciones',
+      sections: ['desubicar', 'entreplanta'],
+      desc: 'Códigos de barras de desubicar y piso 1',
+    },
+    {
+      id: 'rutas',
+      label: '🚚 Rutas y Muelles',
+      roleName: 'Operador de Rutas y Muelles',
+      sections: ['dashboard', 'map', 'zones'],
+      desc: 'Escáner, mapa de muelles y zonas',
+    },
+    {
+      id: 'impresoras',
+      label: '🖨️ Solo Impresoras',
+      roleName: 'Operador de Impresoras',
+      sections: ['impresoras'],
+      desc: 'Generación de código WiFi EMPWIFIZ',
+    },
+  ];
+
   const [newUsername, setNewUsername] = useState('');
   const [newFullName, setNewFullName] = useState('');
   const [newUserRole, setNewUserRole] = useState<'admin' | 'user'>('user');
+  const [newCustomRoleName, setNewCustomRoleName] = useState('Operador Polivalente');
+  const [newUserAllowedSections, setNewUserAllowedSections] = useState<AppSection[]>(ALL_SECTION_KEYS);
   const [newUserPassword, setNewUserPassword] = useState('');
 
   const loadUsers = async () => {
@@ -169,18 +226,26 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
       showMessage('Usuario y contraseña son requeridos', 'error');
       return;
     }
+    const finalSections = newUserRole === 'admin' 
+      ? ALL_SECTION_KEYS 
+      : (newUserAllowedSections.length > 0 ? newUserAllowedSections : ALL_SECTION_KEYS);
+
     try {
       await apiClient.createUser({
         username: newUsername.trim(),
         fullName: newFullName.trim() || newUsername.trim(),
         role: newUserRole,
         password: newUserPassword.trim(),
+        customRoleName: newCustomRoleName.trim() || (newUserRole === 'admin' ? 'Administrador' : 'Operador'),
+        allowedSections: finalSections,
       });
-      showMessage(`Usuario "${newUsername}" creado con éxito`);
+      showMessage(`Usuario "${newUsername}" creado con rol "${newCustomRoleName || newUserRole}"`);
       setIsAddUserOpen(false);
       setNewUsername('');
       setNewFullName('');
       setNewUserPassword('');
+      setNewCustomRoleName('Operador Polivalente');
+      setNewUserAllowedSections(ALL_SECTION_KEYS);
       loadUsers();
     } catch (err: any) {
       showMessage(err.message || 'Error al crear usuario', 'error');
@@ -191,13 +256,20 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
     e.preventDefault();
     if (!editingUser) return;
     try {
+      const isUserAdmin = editingUser.role === 'admin';
+      const finalSections = isUserAdmin 
+        ? ALL_SECTION_KEYS 
+        : (editingUser.allowedSections && editingUser.allowedSections.length > 0 ? editingUser.allowedSections : ALL_SECTION_KEYS);
+
       await apiClient.updateUser(editingUser.id, {
         username: editingUser.username,
         fullName: editingUser.fullName,
         role: editingUser.role,
         password: newUserPassword ? newUserPassword.trim() : undefined,
+        customRoleName: editingUser.customRoleName || (isUserAdmin ? 'Administrador' : 'Operador'),
+        allowedSections: finalSections,
       });
-      showMessage(`Usuario "${editingUser.username}" actualizado`);
+      showMessage(`Usuario "${editingUser.username}" actualizado con éxito`);
       setEditingUser(null);
       setNewUserPassword('');
       loadUsers();
@@ -1476,6 +1548,8 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
                       setNewFullName('');
                       setNewUserPassword('');
                       setNewUserRole('user');
+                      setNewCustomRoleName('Operador Polivalente');
+                      setNewUserAllowedSections([...ALL_SECTION_KEYS]);
                       setIsAddUserOpen(true);
                     }}
                     className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-600/20 transition cursor-pointer"
@@ -1493,7 +1567,8 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
                     <tr>
                       <th className="py-3 px-4">Usuario</th>
                       <th className="py-3 px-4">Nombre Completo</th>
-                      <th className="py-3 px-4">Rol en el Sistema</th>
+                      <th className="py-3 px-4">Rol / Puesto</th>
+                      <th className="py-3 px-4">Secciones Activas (Frontend)</th>
                       <th className="py-3 px-4">Último Acceso</th>
                       <th className="py-3 px-4 text-right">Acciones</th>
                     </tr>
@@ -1502,6 +1577,9 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
                     {usersList.map((user: AppUser) => {
                       const isAdmin = user.role === 'admin';
                       const isDiego = user.username.toLowerCase() === 'diego';
+                      const userSecs = (user.allowedSections && user.allowedSections.length > 0)
+                        ? user.allowedSections
+                        : ALL_SECTION_KEYS;
 
                       return (
                         <tr key={user.id} className="hover:bg-slate-900/50 transition">
@@ -1510,14 +1588,14 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
                                 isAdmin 
                                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
-                                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                               }`}>
                                 {user.username.slice(0, 2).toUpperCase()}
                               </div>
                               <div>
                                 <span className="font-bold text-white block">{user.username}</span>
                                 {isDiego && (
-                                  <span className="text-[10px] text-amber-400 font-semibold">Administrador Principal</span>
+                                  <span className="text-[10px] text-amber-400 font-semibold">Admin Principal</span>
                                 )}
                               </div>
                             </div>
@@ -1529,15 +1607,50 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
 
                           <td className="py-3 px-4">
                             {isAdmin ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold text-[11px]">
-                                <ShieldCheck className="w-3 h-3" />
-                                <span>Administrador (Backend + Frontend)</span>
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold text-[11px]">
+                                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                                <span>{user.customRoleName || 'Administrador Total'}</span>
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-semibold text-[11px]">
+                                <UserCheck className="w-3.5 h-3.5 text-purple-400" />
+                                <span>{user.customRoleName || 'Operador Normal'}</span>
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4">
+                            {isAdmin ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">
+                                <Sparkles className="w-3 h-3" />
+                                <span>Todas (7) + Backend Completo</span>
+                              </span>
+                            ) : userSecs.length === ALL_SECTION_KEYS.length ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-semibold">
+                                <CheckSquare className="w-3 h-3" />
+                                <span>Todas las Secciones (7/7)</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold text-[11px]">
-                                <UserCheck className="w-3 h-3" />
-                                <span>Operador Normal (Frontend)</span>
-                              </span>
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {userSecs.map((sec) => {
+                                  const secMeta = ALL_APP_SECTIONS.find((s) => s.id === sec);
+                                  return (
+                                    <span
+                                      key={sec}
+                                      className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-medium"
+                                      title={secMeta?.label || sec}
+                                    >
+                                      {sec === 'dashboard' && '🔍 Escáner'}
+                                      {sec === 'envios' && '📦 Envíos'}
+                                      {sec === 'desubicar' && '🏷️ Desubicar'}
+                                      {sec === 'entreplanta' && '🏢 Entreplanta'}
+                                      {sec === 'impresoras' && '🖨️ Impresoras'}
+                                      {sec === 'map' && '🗺️ Mapa'}
+                                      {sec === 'zones' && '🧭 Zonas'}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             )}
                           </td>
 
@@ -1549,11 +1662,18 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => {
-                                  setEditingUser(user);
+                                  const currentSecs = (user.allowedSections && user.allowedSections.length > 0)
+                                    ? user.allowedSections
+                                    : [...ALL_SECTION_KEYS];
+                                  setEditingUser({
+                                    ...user,
+                                    customRoleName: user.customRoleName || (user.role === 'admin' ? 'Administrador' : 'Operador Polivalente'),
+                                    allowedSections: currentSecs,
+                                  });
                                   setNewUserPassword('');
                                 }}
                                 className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-amber-400 transition cursor-pointer"
-                                title="Editar contraseña o nombre"
+                                title="Editar rol, permisos y contraseña"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
@@ -1982,100 +2102,300 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
       )}
 
       {/* ============================================================== */}
-      {/* MODAL: ADD / EDIT USER */}
+      {/* MODAL: ADD / EDIT USER WITH ROLES & SECTION PERMISSIONS */}
       {/* ============================================================== */}
-      {(isAddUserOpen || editingUser) && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-400" />
-              <span>{editingUser ? `Editar Usuario "${editingUser.username}"` : 'Crear Nuevo Usuario'}</span>
-            </h3>
+      {(isAddUserOpen || editingUser) && (() => {
+        const isEditing = !!editingUser;
+        const currentRole = isEditing ? editingUser.role : newUserRole;
+        const currentCustomRoleName = isEditing 
+          ? (editingUser.customRoleName || (currentRole === 'admin' ? 'Administrador' : 'Operador Polivalente')) 
+          : newCustomRoleName;
+        const currentSections = isEditing 
+          ? (editingUser.allowedSections && editingUser.allowedSections.length > 0 ? editingUser.allowedSections : ALL_SECTION_KEYS)
+          : newUserAllowedSections;
 
-            <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-300 mb-1 font-semibold">Nombre de Usuario *</label>
-                <input
-                  type="text"
-                  value={editingUser ? editingUser.username : newUsername}
-                  onChange={(e) => {
-                    if (editingUser) setEditingUser({ ...editingUser, username: e.target.value });
-                    else setNewUsername(e.target.value);
-                  }}
-                  disabled={editingUser?.username.toLowerCase() === 'diego'}
-                  placeholder="Ej: operador2"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono disabled:opacity-50"
-                  required
-                />
-              </div>
+        const toggleSection = (secId: AppSection) => {
+          if (isEditing) {
+            const list = editingUser.allowedSections || ALL_SECTION_KEYS;
+            const next = list.includes(secId) 
+              ? (list.length > 1 ? list.filter((s) => s !== secId) : list) // keep at least 1 section
+              : [...list, secId];
+            setEditingUser({ ...editingUser, allowedSections: next });
+          } else {
+            const next = newUserAllowedSections.includes(secId)
+              ? (newUserAllowedSections.length > 1 ? newUserAllowedSections.filter((s) => s !== secId) : newUserAllowedSections)
+              : [...newUserAllowedSections, secId];
+            setNewUserAllowedSections(next);
+          }
+        };
 
-              <div>
-                <label className="block text-slate-300 mb-1 font-semibold">Nombre Completo</label>
-                <input
-                  type="text"
-                  value={editingUser ? editingUser.fullName : newFullName}
-                  onChange={(e) => {
-                    if (editingUser) setEditingUser({ ...editingUser, fullName: e.target.value });
-                    else setNewFullName(e.target.value);
-                  }}
-                  placeholder="Ej: Juan Pérez"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
-                />
-              </div>
+        const applyTemplate = (tpl: typeof ROLE_TEMPLATES[0]) => {
+          if (isEditing) {
+            setEditingUser({
+              ...editingUser,
+              customRoleName: tpl.roleName,
+              allowedSections: [...tpl.sections],
+            });
+          } else {
+            setNewCustomRoleName(tpl.roleName);
+            setNewUserAllowedSections([...tpl.sections]);
+          }
+        };
 
-              <div>
-                <label className="block text-slate-300 mb-1 font-semibold">Rol</label>
-                <select
-                  value={editingUser ? editingUser.role : newUserRole}
-                  onChange={(e) => {
-                    const role = e.target.value as 'admin' | 'user';
-                    if (editingUser) setEditingUser({ ...editingUser, role });
-                    else setNewUserRole(role);
-                  }}
-                  disabled={editingUser?.username.toLowerCase() === 'diego'}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white disabled:opacity-50"
-                >
-                  <option value="user">Operador Normal (Acceso solo Frontend)</option>
-                  <option value="admin">Administrador (Backend + Frontend)</option>
-                </select>
-              </div>
+        const selectAllSections = () => {
+          if (isEditing) {
+            setEditingUser({ ...editingUser, allowedSections: [...ALL_SECTION_KEYS] });
+          } else {
+            setNewUserAllowedSections([...ALL_SECTION_KEYS]);
+          }
+        };
 
-              <div>
-                <label className="block text-slate-300 mb-1 font-semibold">
-                  {editingUser ? 'Nueva Contraseña (dejar en blanco para no cambiar)' : 'Contraseña *'}
-                </label>
-                <input
-                  type="password"
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  placeholder="Introduce la clave"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono"
-                  required={!editingUser}
-                />
-              </div>
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-4 my-8 max-h-[92vh] flex flex-col">
+              
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-400 flex items-center justify-center font-bold">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">
+                      {isEditing ? `Editar Usuario "${editingUser.username}"` : 'Crear Nuevo Usuario y Asignar Rol'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Configura el puesto y activa o desactiva las secciones visibles para este usuario
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => {
                     setIsAddUserOpen(false);
                     setEditingUser(null);
                   }}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
+                  className="text-slate-400 hover:text-white p-1 rounded-lg"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold cursor-pointer"
-                >
-                  {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={isEditing ? handleUpdateUser : handleCreateUser} className="space-y-4 text-xs overflow-y-auto pr-1">
+                
+                {/* Basic user info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 mb-1 font-semibold">Nombre de Usuario *</label>
+                    <input
+                      type="text"
+                      value={isEditing ? editingUser.username : newUsername}
+                      onChange={(e) => {
+                        if (isEditing) setEditingUser({ ...editingUser, username: e.target.value });
+                        else setNewUsername(e.target.value);
+                      }}
+                      disabled={editingUser?.username.toLowerCase() === 'diego'}
+                      placeholder="Ej: operador_envios"
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono disabled:opacity-50 focus:border-purple-500 focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 mb-1 font-semibold">Nombre Completo</label>
+                    <input
+                      type="text"
+                      value={isEditing ? editingUser.fullName : newFullName}
+                      onChange={(e) => {
+                        if (isEditing) setEditingUser({ ...editingUser, fullName: e.target.value });
+                        else setNewFullName(e.target.value);
+                      }}
+                      placeholder="Ej: Laura Gómez"
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Account Type & Custom Role Name */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 mb-1 font-semibold">Tipo de Cuenta</label>
+                    <select
+                      value={currentRole}
+                      onChange={(e) => {
+                        const role = e.target.value as 'admin' | 'user';
+                        if (isEditing) setEditingUser({ ...editingUser, role });
+                        else setNewUserRole(role);
+                      }}
+                      disabled={editingUser?.username.toLowerCase() === 'diego'}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white disabled:opacity-50 focus:border-purple-500 focus:outline-none"
+                    >
+                      <option value="user">Operador (Secciones Configurables)</option>
+                      <option value="admin">Administrador (Acceso Total + Backend)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 mb-1 font-semibold">
+                      Nombre del Puesto / Rol *
+                    </label>
+                    <input
+                      type="text"
+                      value={currentCustomRoleName}
+                      onChange={(e) => {
+                        if (isEditing) setEditingUser({ ...editingUser, customRoleName: e.target.value });
+                        else setNewCustomRoleName(e.target.value);
+                      }}
+                      placeholder="Ej: Operador de Envíos, Carretillero..."
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-medium focus:border-purple-500 focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* PASSWORD */}
+                <div>
+                  <label className="block text-slate-300 mb-1 font-semibold">
+                    {isEditing ? 'Nueva Contraseña (dejar en blanco para conservar la actual)' : 'Contraseña de Acceso *'}
+                  </label>
+                  <input
+                    type="password"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder={isEditing ? '••••••••' : 'Introduce contraseña'}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono focus:border-purple-500 focus:outline-none"
+                    required={!isEditing}
+                  />
+                </div>
+
+                {/* ROLE TEMPLATES (PRESETS) */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Plantillas Rápidas de Rol</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={selectAllSections}
+                      className="text-[11px] text-purple-400 hover:text-purple-300 font-semibold cursor-pointer"
+                    >
+                      Marcar Todas (7)
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ROLE_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => applyTemplate(tpl)}
+                        className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/50 text-left transition group cursor-pointer flex flex-col justify-between"
+                      >
+                        <span className="font-bold text-slate-200 group-hover:text-purple-300 text-[11px] block">
+                          {tpl.label}
+                        </span>
+                        <span className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
+                          {tpl.desc}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* GRANULAR SECTION PERMISSION TOGGLES */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Activar Secciones para este Usuario</span>
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {currentRole === 'admin' 
+                        ? 'Administrador tiene acceso a todas' 
+                        : `${currentSections.length} de ${ALL_SECTION_KEYS.length} secciones activas`}
+                    </span>
+                  </div>
+
+                  {currentRole === 'admin' ? (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 shrink-0" />
+                      <span>
+                        Los administradores tienen acceso automático permanente a las 7 secciones del frontend y al panel de control backend.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ALL_APP_SECTIONS.map((sec) => {
+                        const isChecked = currentSections.includes(sec.id);
+                        return (
+                          <div
+                            key={sec.id}
+                            onClick={() => toggleSection(sec.id)}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between gap-2.5 cursor-pointer transition select-none ${
+                              isChecked
+                                ? 'bg-purple-950/30 border-purple-500/40 text-white'
+                                : 'bg-slate-950/60 border-slate-800/80 text-slate-400 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base shrink-0">
+                                {sec.id === 'dashboard' && '🔍'}
+                                {sec.id === 'envios' && '📦'}
+                                {sec.id === 'desubicar' && '🏷️'}
+                                {sec.id === 'entreplanta' && '🏢'}
+                                {sec.id === 'impresoras' && '🖨️'}
+                                {sec.id === 'map' && '🗺️'}
+                                {sec.id === 'zones' && '🧭'}
+                              </span>
+                              <div className="min-w-0">
+                                <span className="font-bold text-xs block truncate text-slate-200">
+                                  {sec.label}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block truncate">
+                                  {sec.description}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border ${
+                              isChecked 
+                                ? 'bg-purple-600 border-purple-500 text-white' 
+                                : 'border-slate-700 bg-slate-900'
+                            }`}>
+                              {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* MODAL FOOTER BUTTONS */}
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddUserOpen(false);
+                      setEditingUser(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold cursor-pointer shadow-lg shadow-purple-600/20"
+                  >
+                    {isEditing ? 'Guardar Cambios' : 'Crear Usuario'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================== */}
       {/* MODAL: ADD / EDIT ENVIO BUTTON */}

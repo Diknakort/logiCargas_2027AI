@@ -50,11 +50,40 @@ export interface ServerSyncState {
   lastSyncCount: number;
 }
 
+export type AppSection = 'dashboard' | 'envios' | 'desubicar' | 'entreplanta' | 'impresoras' | 'map' | 'zones';
+
+export interface SectionMeta {
+  id: AppSection;
+  label: string;
+  shortLabel: string;
+  badge: string;
+  description: string;
+}
+
+export const ALL_APP_SECTIONS: SectionMeta[] = [
+  { id: 'dashboard', label: 'Escáner y Rutas', shortLabel: 'Escáner', badge: 'Rutas', description: 'Búsqueda de rutas de reparto y albaranes' },
+  { id: 'envios', label: 'Envíos', shortLabel: 'Envíos', badge: 'QR', description: 'Códigos QR para tipos de carga y expediciones' },
+  { id: 'desubicar', label: 'DESUBICAR', shortLabel: 'Desubicar', badge: 'Barras', description: 'Códigos de barras de ubicaciones por área' },
+  { id: 'entreplanta', label: 'Entreplanta', shortLabel: 'Entreplanta', badge: 'Piso 1', description: 'Ubicaciones de Reposición y Ascensor' },
+  { id: 'impresoras', label: 'Impresoras', shortLabel: 'Impresoras', badge: 'WiFi', description: 'Códigos de enlace WiFi EMPWIFIZ' },
+  { id: 'map', label: 'Mapa de Muelles', shortLabel: 'Muelles', badge: 'Plano', description: 'Localización visual de muelles y bahías' },
+  { id: 'zones', label: 'Zonas', shortLabel: 'Zonas', badge: 'Lista', description: 'Explorador y tabla completa de zonas' },
+];
+
+export function isUserSectionAllowed(user: AppUser | null | undefined, section: AppSection): boolean {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  if (!user.allowedSections || user.allowedSections.length === 0) return true;
+  return user.allowedSections.includes(section);
+}
+
 export interface AppUser {
   id: string;
   username: string;
   fullName: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | string;
+  allowedSections?: AppSection[];
+  customRoleName?: string;
   createdAt?: string;
   lastLogin?: string;
   hasPassword?: boolean;
