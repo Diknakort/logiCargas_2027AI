@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppUser } from '../types/logistics';
 import { apiClient } from '../services/apiClient';
-import { Lock, User, ShieldCheck, Truck, ArrowRight, AlertCircle, KeyRound, CheckCircle2 } from 'lucide-react';
+import { Lock, User, Truck, ArrowRight, AlertCircle, KeyRound } from 'lucide-react';
 
 interface LoginViewProps {
   onLoginSuccess: (user: AppUser) => void;
@@ -31,12 +31,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const setCredentials = (user: string, pass: string) => {
-    setUsername(user);
-    setPassword(pass);
-    setError(null);
   };
 
   return (
@@ -71,7 +65,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               <span>Iniciar Sesión en el Sistema</span>
             </div>
             <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-              v3.2 Secure
+              Acceso Seguro
             </span>
           </div>
 
@@ -95,7 +89,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Ej: Diego o user"
+                  placeholder="Introduce tu nombre de usuario"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition text-sm"
                   autoFocus
                 />
@@ -114,7 +108,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Introduce tu clave"
+                  placeholder="Introduce tu contraseña"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition text-sm"
                 />
               </div>
@@ -135,48 +129,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               )}
             </button>
           </form>
-
-          {/* Quick Access Badges for Easy Testing */}
-          <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Accesos Rápidos Configurados:
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setCredentials('Diego', '1yo1')}
-                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 text-left transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Diego</span>
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  Rol: <strong className="text-slate-300">Admin (Backend)</strong>
-                </div>
-                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                  Clave: 1yo1
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCredentials('user', '1234')}
-                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 text-left transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-blue-400">
-                  <Truck className="w-3.5 h-3.5" />
-                  <span>user</span>
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">
-                  Rol: <strong className="text-slate-300">Operador (Front)</strong>
-                </div>
-                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                  Clave: 1234
-                </div>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Security Note */}

@@ -16,11 +16,14 @@ import { LoginView } from './components/LoginView';
 import { AdminBackend } from './components/AdminBackend';
 import { EnviosView } from './components/EnviosView';
 import { DesubicarView } from './components/DesubicarView';
-import { RouteItem, SyncConfig, AppUser, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem } from './types/logistics';
+import { EntreplantaView } from './components/EntreplantaView';
+import { ImpresorasView } from './components/ImpresorasView';
+import { RouteItem, SyncConfig, AppUser, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem, EntreplantaItem } from './types/logistics';
 import { INITIAL_ROUTES } from './data/initialData';
 import { REAL_WAREHOUSE_ZONES } from './data/warehouseMapData';
 import { apiClient, DEFAULT_ENVIOS_FALLBACK } from './services/apiClient';
 import { DEFAULT_UBICACIONES } from './data/ubicacionesData';
+import { DEFAULT_ENTREPLANTA } from './data/entreplantaData';
 import { 
   loadSavedRoutes, 
   saveRoutesLocally, 
@@ -32,17 +35,19 @@ import {
   Layers, 
   RefreshCw, 
   ExternalLink, 
-  AlertCircle,
-  Truck,
-  Sparkles,
-  Info,
-  LogOut,
-  ShieldCheck,
-  UserCheck,
-  Settings,
-  ArrowRight,
-  Boxes,
-  PackageMinus
+  AlertCircle, 
+  Truck, 
+  Sparkles, 
+  Info, 
+  LogOut, 
+  ShieldCheck, 
+  UserCheck, 
+  Settings, 
+  ArrowRight, 
+  Boxes, 
+  PackageMinus,
+  Building2,
+  Printer
 } from 'lucide-react';
 
 export default function App() {
@@ -61,17 +66,37 @@ export default function App() {
   });
   const [recentRoutes, setRecentRoutes] = useState<RouteItem[]>([]);
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'envios' | 'desubicar' | 'map' | 'zones'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'envios' | 'desubicar' | 'entreplanta' | 'impresoras' | 'map' | 'zones'>('dashboard');
   const [envios, setEnvios] = useState<EnvioItem[]>(DEFAULT_ENVIOS_FALLBACK);
   const [ubicaciones, setUbicaciones] = useState<UbicacionItem[]>(DEFAULT_UBICACIONES);
+  const [entreplanta, setEntreplanta] = useState<EntreplantaItem[]>(DEFAULT_ENTREPLANTA);
 
-  // Map state
-  const [mapZones, setMapZones] = useState<WarehouseZoneArea[]>(REAL_WAREHOUSE_ZONES);
-  const [mapConfig, setMapConfig] = useState<MapConfig>({
-    activeMapMode: 'enhanced',
-    customMapUrl: '',
-    mapTitle: 'Plano General de Almacén y Muelles (Render HD Vertical)',
-    dockLabelMode: 'text',
+  // Map state with localStorage caching & fallback
+  const [mapZones, setMapZones] = useState<WarehouseZoneArea[]>(() => {
+    const saved = localStorage.getItem('logiruta_map_zones_v2');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return REAL_WAREHOUSE_ZONES;
+  });
+
+  const [mapConfig, setMapConfig] = useState<MapConfig>(() => {
+    const saved = localStorage.getItem('logiruta_map_config_v2');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.activeMapMode) return parsed;
+      } catch {}
+    }
+    return {
+      activeMapMode: 'enhanced',
+      customMapUrl: '',
+      mapTitle: 'Plano General de Almacén y Muelles (Render HD Vertical)',
+      dockLabelMode: 'text',
+    };
   });
 
   // Modals
@@ -119,6 +144,9 @@ export default function App() {
       if (res.ubicaciones && res.ubicaciones.length > 0) {
         setUbicaciones(res.ubicaciones);
       }
+      if (res.entreplanta && res.entreplanta.length > 0) {
+        setEntreplanta(res.entreplanta);
+      }
       setSyncConfig((prev) => ({
         ...prev,
         status: 'success',
@@ -134,7 +162,7 @@ export default function App() {
     }
   };
 
-  // Load server routes, map zones, map config, envios, and ubicaciones on start
+  // Load server routes, map zones, map config, envios, ubicaciones, and entreplanta on start
   useEffect(() => {
     apiClient.getRoutes().then((serverRoutes) => {
       if (serverRoutes && serverRoutes.length > 0) {
@@ -152,6 +180,12 @@ export default function App() {
     apiClient.getUbicaciones().then((serverUbicaciones) => {
       if (serverUbicaciones && serverUbicaciones.length > 0) {
         setUbicaciones(serverUbicaciones);
+      }
+    });
+
+    apiClient.getEntreplanta().then((serverEntreplanta) => {
+      if (serverEntreplanta && serverEntreplanta.length > 0) {
+        setEntreplanta(serverEntreplanta);
       }
     });
 
@@ -185,6 +219,31 @@ export default function App() {
   useEffect(() => {
     saveRoutesLocally(routes);
   }, [routes]);
+
+  // Save map zones and map config to localStorage
+  useEffect(() => {
+    localStorage.setItem('logiruta_map_zones_v2', JSON.stringify(mapZones));
+  }, [mapZones]);
+
+  useEffect(() => {
+    localStorage.setItem('logiruta_map_config_v2', JSON.stringify(mapConfig));
+  }, [mapConfig]);
+
+  // Refresh map zones and config whenever returning to frontend or switching views
+  useEffect(() => {
+    if (currentSection === 'frontend') {
+      apiClient.getMapZones().then((zones) => {
+        if (zones && zones.length > 0) {
+          setMapZones(zones);
+        }
+      });
+      apiClient.getMapConfig().then((cfg) => {
+        if (cfg) {
+          setMapConfig(cfg);
+        }
+      });
+    }
+  }, [currentSection, activeView]);
 
   // Save sync config
   useEffect(() => {
@@ -519,6 +578,20 @@ export default function App() {
           />
         )}
 
+        {/* VIEW 2.8: ENTREPLANTA (REPOSICIÓN & ASCENSOR) */}
+        {activeView === 'entreplanta' && (
+          <EntreplantaView
+            entreplanta={entreplanta}
+            onRefresh={currentUser.role === 'admin' ? handleQuickDailySync : undefined}
+            isRefreshing={syncConfig.status === 'syncing'}
+          />
+        )}
+
+        {/* VIEW 2.9: IMPRESORAS (CODE 128 BARCODES CON PREFIJO EMPWIFIZ) */}
+        {activeView === 'impresoras' && (
+          <ImpresorasView />
+        )}
+
         {/* VIEW 3: FULL WAREHOUSE DOCK MAP */}
         {activeView === 'map' && (
           <div className="space-y-4">
@@ -641,7 +714,7 @@ export default function App() {
 
         <button
           onClick={() => setActiveView('desubicar')}
-          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition ${
+          className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
             activeView === 'desubicar'
               ? 'text-amber-400 font-bold bg-amber-500/10'
               : 'text-slate-400 hover:text-slate-200'
@@ -649,6 +722,30 @@ export default function App() {
         >
           <PackageMinus className="w-4 h-4 mb-0.5" />
           <span className="text-[9px]">Desubicar</span>
+        </button>
+
+        <button
+          onClick={() => setActiveView('entreplanta')}
+          className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
+            activeView === 'entreplanta'
+              ? 'text-amber-400 font-bold bg-amber-500/10'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Building2 className="w-4 h-4 mb-0.5" />
+          <span className="text-[9px]">Entreplanta</span>
+        </button>
+
+        <button
+          onClick={() => setActiveView('impresoras')}
+          className={`flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl transition ${
+            activeView === 'impresoras'
+              ? 'text-amber-400 font-bold bg-amber-500/10'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Printer className="w-4 h-4 mb-0.5" />
+          <span className="text-[9px]">Impresoras</span>
         </button>
 
         <button

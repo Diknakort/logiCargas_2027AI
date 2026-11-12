@@ -10,6 +10,7 @@ import {
 import { RouteItem } from '../types/logistics';
 import { 
   ENHANCED_WAREHOUSE_MAP_IMAGE, 
+  ORIGINAL_WAREHOUSE_PHOTO,
   REAL_WAREHOUSE_ZONES, 
   WarehouseZoneArea 
 } from '../data/warehouseMapData';
@@ -31,12 +32,27 @@ export const DockMap: React.FC<DockMapProps> = ({
   onSelectRoute,
   onUpdateRouteDock,
   zones,
+  mapConfig,
 }) => {
   const activeZones = zones && zones.length > 0 ? zones : REAL_WAREHOUSE_ZONES;
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [wallFilter, setWallFilter] = useState<'all' | 'right' | 'bottom' | 'left'>('all');
+  const [wallFilter, setWallFilter] = useState<'all' | 'right' | 'bottom' | 'left' | 'top' | 'center'>('all');
+
+  // Map image dynamically chosen according to mapConfig
+  const currentMapImage = useMemo(() => {
+    if (mapConfig?.activeMapMode === 'custom' && mapConfig.customMapUrl) {
+      return mapConfig.customMapUrl;
+    }
+    if (mapConfig?.activeMapMode === 'original') {
+      return ORIGINAL_WAREHOUSE_PHOTO;
+    }
+    // Default is enhanced (Render HD vertical)
+    return ENHANCED_WAREHOUSE_MAP_IMAGE;
+  }, [mapConfig?.activeMapMode, mapConfig?.customMapUrl]);
+
+  const isPortrait = !mapConfig?.activeMapMode || mapConfig.activeMapMode === 'enhanced';
 
   // Detect which zone corresponds to the selected route
   const currentRouteZoneArea = useMemo(() => {
@@ -96,7 +112,7 @@ export const DockMap: React.FC<DockMapProps> = ({
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
       
-      {/* Top Header Banner - Clean Single View: Plan Render HD Vertical */}
+      {/* Top Header Banner - Dynamic View Mode from mapConfig */}
       <div className="bg-gradient-to-r from-blue-950/80 via-slate-900 to-slate-900 border-b border-blue-500/30 p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
@@ -105,15 +121,23 @@ export const DockMap: React.FC<DockMapProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold text-white">
-                Plano Render HD
+                {mapConfig?.mapTitle || (mapConfig?.activeMapMode === 'original' ? 'Foto Real de Almacén' : 'Plano Render HD')}
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase tracking-wider flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-amber-400" />
-                Vertical · Orientación Exacta
+                {mapConfig?.activeMapMode === 'custom'
+                  ? 'Plano Personalizado'
+                  : mapConfig?.activeMapMode === 'original'
+                  ? 'Foto Original'
+                  : mapConfig?.activeMapMode === 'cad'
+                  ? 'Esquema CAD'
+                  : 'Vertical · Render HD'}
               </span>
             </div>
             <p className="text-xs text-slate-300">
-              Zona 40 (izq.) · Zonas 74 a 82 (abajo, &rarr; der.) · Muelles 091 a 145 (derecha, 145 arriba &rarr; 091 abajo)
+              {mapConfig?.activeMapMode === 'original' 
+                ? 'Fotografía original de nave con marcas físicas de muelles y bahías'
+                : 'Zona 40 (izq.) · Zonas 74 a 82 (abajo, → der.) · Muelles 091 a 145 (derecha, 145 arriba → 091 abajo)'}
             </p>
           </div>
         </div>
@@ -178,6 +202,30 @@ export const DockMap: React.FC<DockMapProps> = ({
           >
             Izquierda (Zona 40)
           </button>
+          {activeZones.some((z) => z.wall === 'top') && (
+            <button
+              onClick={() => setWallFilter('top')}
+              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                wallFilter === 'top' 
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow' 
+                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+              }`}
+            >
+              Arriba / Norte
+            </button>
+          )}
+          {activeZones.some((z) => z.wall === 'center') && (
+            <button
+              onClick={() => setWallFilter('center')}
+              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                wallFilter === 'center' 
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow' 
+                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+              }`}
+            >
+              Interior / Centro
+            </button>
+          )}
         </div>
 
         {/* Zoom Controls */}
@@ -210,21 +258,23 @@ export const DockMap: React.FC<DockMapProps> = ({
 
       </div>
 
-      {/* Main Interactive Map Canvas in Vertical Format */}
+      {/* Main Interactive Map Canvas (Portrait or Landscape depending on activeMapMode) */}
       <div className="relative w-full bg-slate-950 overflow-auto min-h-[580px] sm:min-h-[720px] flex items-center justify-center p-3 select-none">
         
-        {/* Scalable Container - Vertical Portrait Aspect Ratio (768 / 1376) */}
+        {/* Scalable Container */}
         <div 
-          className="relative transition-transform duration-200 origin-top max-w-md sm:max-w-lg md:max-w-xl w-full rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700/80 bg-slate-900"
+          className={`relative transition-transform duration-200 origin-top w-full rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700/80 bg-slate-900 ${
+            isPortrait ? 'max-w-md sm:max-w-lg md:max-w-xl' : 'max-w-4xl'
+          }`}
           style={{
             transform: `scale(${zoomLevel})`,
-            aspectRatio: '768 / 1376',
+            aspectRatio: isPortrait ? '768 / 1376' : '4 / 3',
           }}
         >
-          {/* PLAN RENDER HD VERTICAL IMAGE */}
+          {/* ACTIVE MAP IMAGE */}
           <img
-            src={ENHANCED_WAREHOUSE_MAP_IMAGE}
-            alt="Plano Render HD Vertical de Nave Logística"
+            src={currentMapImage}
+            alt={mapConfig?.mapTitle || "Plano de Nave Logística"}
             className="w-full h-full object-cover block select-none pointer-events-none"
           />
 
@@ -232,8 +282,8 @@ export const DockMap: React.FC<DockMapProps> = ({
           {focusedZone && (
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
               <circle
-                cx={`${focusedZone.x}%`}
-                cy={`${focusedZone.y}%`}
+                cx={`${focusedZone.textX ?? focusedZone.x}%`}
+                cy={`${focusedZone.textY ?? focusedZone.y}%`}
                 r="24"
                 fill="none"
                 stroke="#f59e0b"
@@ -244,10 +294,12 @@ export const DockMap: React.FC<DockMapProps> = ({
             </svg>
           )}
 
-          {/* INTERACTIVE CLICKABLE DOCK PINS WITH STRICTLY HORIZONTAL TEXT */}
+          {/* INTERACTIVE CLICKABLE DOCK PINS WITH HORIZONTAL TEXT */}
           {filteredZones.map((zone) => {
             const isCurrentRouteTarget = currentRouteZoneArea?.id === zone.id;
             const isFocused = focusedZone?.id === zone.id;
+            const posX = zone.textX ?? zone.x;
+            const posY = zone.textY ?? zone.y;
 
             return (
               <div
@@ -261,8 +313,8 @@ export const DockMap: React.FC<DockMapProps> = ({
                     : 'hover:scale-105 hover:z-30'
                 }`}
                 style={{
-                  left: `${zone.x}%`,
-                  top: `${zone.y}%`,
+                  left: `${posX}%`,
+                  top: `${posY}%`,
                   width: `${zone.width}%`,
                   height: `${zone.height}%`,
                 }}
@@ -285,7 +337,7 @@ export const DockMap: React.FC<DockMapProps> = ({
                   {/* Icon & Code strictly horizontal */}
                   <div className="flex items-center justify-center gap-1 w-full text-center">
                     <span className="font-mono text-[10px] sm:text-xs leading-none font-black tracking-tight whitespace-nowrap">
-                      {zone.code}
+                      {mapConfig?.dockLabelMode === 'dock' && zone.dockLabel ? zone.dockLabel : zone.code}
                     </span>
                     {isCurrentRouteTarget && (
                       <span className="text-[8px] bg-slate-950 text-amber-300 px-1 py-0.5 rounded font-black uppercase tracking-wider">

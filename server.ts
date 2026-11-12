@@ -36,6 +36,16 @@ const MAP_CONFIG_FILE = path.join(DATA_DIR, 'map_config.json');
 const SYNC_CONFIG_FILE = path.join(DATA_DIR, 'sync_config.json');
 const ENVIOS_FILE = path.join(DATA_DIR, 'envios.json');
 const UBICACIONES_FILE = path.join(DATA_DIR, 'ubicaciones.json');
+const ENTREPLANTA_FILE = path.join(DATA_DIR, 'entreplanta.json');
+
+const DEFAULT_ENTREPLANTA = [
+  { id: 'ent-1-E1_1', codigo: 'E1_1', area: 'Reposición', orden: 1 },
+  { id: 'ent-2-E1_2', codigo: 'E1_2', area: 'Reposición', orden: 2 },
+  { id: 'ent-3-E2_1', codigo: 'E2_1', area: 'Reposición', orden: 3 },
+  { id: 'ent-4-E2_2', codigo: 'E2_2', area: 'Reposición', orden: 4 },
+  { id: 'ent-5-S1_1', codigo: 'S1_1', area: 'Ascensor', orden: 5 },
+  { id: 'ent-6-S1_2', codigo: 'S1_2', area: 'Ascensor', orden: 6 },
+];
 
 const DEFAULT_ENVIOS = [
   {
@@ -840,6 +850,21 @@ app.put('/api/ubicaciones', (req, res) => {
   return res.json({ success: true, count: ubicaciones.length, ubicaciones });
 });
 
+// --- ENTREPLANTA ---
+app.get('/api/entreplanta', (_req, res) => {
+  const entreplanta = readJsonFile(ENTREPLANTA_FILE, DEFAULT_ENTREPLANTA);
+  return res.json(entreplanta);
+});
+
+app.put('/api/entreplanta', (req, res) => {
+  const { entreplanta } = req.body;
+  if (!Array.isArray(entreplanta)) {
+    return res.status(400).json({ error: 'Formato inválido para lista de entreplanta' });
+  }
+  writeJsonFile(ENTREPLANTA_FILE, entreplanta);
+  return res.json({ success: true, count: entreplanta.length, entreplanta });
+});
+
 // --- MAP ZONES & DOCKS ---
 app.get('/api/map/zones', (req, res) => {
   const zones = readJsonFile(MAP_ZONES_FILE, DEFAULT_MAP_ZONES);
@@ -863,19 +888,23 @@ app.post('/api/map/zones', (req, res) => {
 
   const zones = readJsonFile(MAP_ZONES_FILE, DEFAULT_MAP_ZONES);
   const id = newZone.id || newZone.code.trim();
+  const isRight = newZone.wall === 'right';
+  const isBottom = newZone.wall === 'bottom';
+  const isLeft = newZone.wall === 'left';
+
   const zoneToSave = {
     id,
     code: newZone.code.trim(),
     label: newZone.label.trim(),
     wall: newZone.wall || 'bottom',
-    x: Number(newZone.x) || 50,
-    y: Number(newZone.y) || 50,
-    width: Number(newZone.width) || 5.8,
-    height: Number(newZone.height) || 7.6,
-    textX: Number(newZone.textX || newZone.x) || 50,
-    textY: Number(newZone.textY || newZone.y) || 50,
-    dockX: Number(newZone.dockX || newZone.x) || 50,
-    dockY: Number(newZone.dockY || (Number(newZone.y) - 2)) || 48,
+    x: typeof newZone.x === 'number' ? newZone.x : Number(newZone.x) || 50,
+    y: typeof newZone.y === 'number' ? newZone.y : Number(newZone.y) || 50,
+    width: typeof newZone.width === 'number' ? newZone.width : Number(newZone.width) || (isRight ? 22 : isBottom ? 14 : isLeft ? 20 : 15),
+    height: typeof newZone.height === 'number' ? newZone.height : Number(newZone.height) || 3.4,
+    textX: typeof newZone.textX === 'number' ? newZone.textX : Number(newZone.textX ?? newZone.x) || 50,
+    textY: typeof newZone.textY === 'number' ? newZone.textY : Number(newZone.textY ?? newZone.y) || 50,
+    dockX: typeof newZone.dockX === 'number' ? newZone.dockX : Number(newZone.dockX ?? newZone.x) || 50,
+    dockY: typeof newZone.dockY === 'number' ? newZone.dockY : Number(newZone.dockY ?? (Number(newZone.y) - 2.5)) || 47.5,
     dockLabel: newZone.dockLabel || `Muelle ${newZone.code}`,
     description: newZone.description || `Zona ${newZone.code}`,
   };
@@ -1106,6 +1135,31 @@ function parseUbicacionesSheet(worksheet: XLSX.WorkSheet): any[] {
   return result;
 }
 
+function parseEntreplantaSheet(worksheet: XLSX.WorkSheet): any[] {
+  const rawRows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+  const result: any[] = [];
+
+  for (let i = 0; i < rawRows.length; i++) {
+    const row = rawRows[i];
+    if (!row || !row[0]) continue;
+    const col0 = String(row[0]).trim();
+    const col1 = row[1] !== undefined && row[1] !== null ? String(row[1]).trim() : '';
+    // Skip header row if present
+    if (/^(codigo|ubicacion|ubicaci|location|name)/i.test(col0) && /^(area|zona|zone|tipo)/i.test(col1)) {
+      continue;
+    }
+    if (col0 && col1) {
+      result.push({
+        id: `ent-${result.length + 1}-${col0}`,
+        codigo: col0,
+        area: col1,
+        orden: result.length + 1,
+      });
+    }
+  }
+  return result;
+}
+
 function parseGoogleSheetCsvToRoutes(csvText: string): any[] {
   const workbook = XLSX.read(csvText, { type: 'string' });
   const firstSheetName = workbook.SheetNames[0];
@@ -1121,6 +1175,7 @@ async function performSyncFromGoogleSheets(customUrl?: string): Promise<{
   routes?: any[];
   envios?: any[];
   ubicaciones?: any[];
+  entreplanta?: any[];
 }> {
   const syncConfig = readJsonFile(SYNC_CONFIG_FILE, DEFAULT_SYNC_CONFIG);
   const targetUrl = customUrl || syncConfig.sourceUrl;
@@ -1129,6 +1184,7 @@ async function performSyncFromGoogleSheets(customUrl?: string): Promise<{
   let parsedRoutes: any[] = [];
   let parsedEnvios: any[] = [];
   let parsedUbicaciones: any[] = [];
+  let parsedEntreplanta: any[] = [];
   let syncSuccess = false;
 
   // 1. First try XLSX export which downloads all tabs (including 'Envios', 'Rutas', and 'Ubicaciones')
@@ -1172,6 +1228,16 @@ async function performSyncFromGoogleSheets(customUrl?: string): Promise<{
           if (parsedUbicaciones.length > 0) {
             writeJsonFile(UBICACIONES_FILE, parsedUbicaciones);
             console.log(`[LogiRuta] Pestaña Ubicaciones sincronizada: ${parsedUbicaciones.length} ubicaciones cargadas`);
+          }
+        }
+
+        // Process Entreplanta (Reposición & Ascensor)
+        const entreplantaSheetName = workbook.SheetNames.find((name) => /entreplanta/i.test(name));
+        if (entreplantaSheetName && workbook.Sheets[entreplantaSheetName]) {
+          parsedEntreplanta = parseEntreplantaSheet(workbook.Sheets[entreplantaSheetName]);
+          if (parsedEntreplanta.length > 0) {
+            writeJsonFile(ENTREPLANTA_FILE, parsedEntreplanta);
+            console.log(`[LogiRuta] Pestaña Entreplanta sincronizada: ${parsedEntreplanta.length} ubicaciones cargadas`);
           }
         }
 
@@ -1247,6 +1313,11 @@ async function performSyncFromGoogleSheets(customUrl?: string): Promise<{
     parsedUbicaciones = readJsonFile(UBICACIONES_FILE, []);
   }
 
+  // If entreplanta wasn't in XLSX, load from file
+  if (parsedEntreplanta.length === 0) {
+    parsedEntreplanta = readJsonFile(ENTREPLANTA_FILE, DEFAULT_ENTREPLANTA);
+  }
+
   return {
     success: true,
     count: parsedRoutes.length,
@@ -1254,6 +1325,7 @@ async function performSyncFromGoogleSheets(customUrl?: string): Promise<{
     routes: parsedRoutes,
     envios: parsedEnvios,
     ubicaciones: parsedUbicaciones,
+    entreplanta: parsedEntreplanta,
   };
 }
 

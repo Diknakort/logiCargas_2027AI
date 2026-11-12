@@ -1,7 +1,8 @@
-import { AppUser, RouteItem, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem } from '../types/logistics';
+import { AppUser, RouteItem, WarehouseZoneArea, MapConfig, EnvioItem, UbicacionItem, EntreplantaItem } from '../types/logistics';
 import { REAL_WAREHOUSE_ZONES } from '../data/warehouseMapData';
 import { INITIAL_ROUTES } from '../data/initialData';
 import { DEFAULT_UBICACIONES } from '../data/ubicacionesData';
+import { DEFAULT_ENTREPLANTA } from '../data/entreplantaData';
 
 const AUTH_STORAGE_KEY = 'logiruta_auth_user_v1';
 
@@ -396,6 +397,7 @@ export const apiClient = {
     routes?: RouteItem[];
     envios?: EnvioItem[];
     ubicaciones?: UbicacionItem[];
+    entreplanta?: EntreplantaItem[];
   }> {
     const res = await fetch('/api/sync/trigger', {
       method: 'POST',
@@ -485,6 +487,35 @@ export const apiClient = {
     }
     const data = await res.json();
     return data.ubicaciones || ubicaciones;
+  },
+
+  async getEntreplanta(): Promise<EntreplantaItem[]> {
+    try {
+      const res = await fetch('/api/entreplanta');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
+      }
+    } catch (err) {
+      console.warn('API /api/entreplanta failed, using fallback:', err);
+    }
+    return DEFAULT_ENTREPLANTA;
+  },
+
+  async updateEntreplanta(entreplanta: EntreplantaItem[]): Promise<EntreplantaItem[]> {
+    const res = await fetch('/api/entreplanta', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entreplanta }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error al actualizar lista de entreplanta');
+    }
+    const data = await res.json();
+    return data.entreplanta || entreplanta;
   },
 };
 

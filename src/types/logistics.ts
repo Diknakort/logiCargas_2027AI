@@ -101,4 +101,11 @@ export interface UbicacionItem {
   orden?: number;
 }
 
+export interface EntreplantaItem {
+  id: string;
+  codigo: string;
+  area: 'Reposición' | 'Ascensor' | string;
+  orden?: number;
+}
+
 

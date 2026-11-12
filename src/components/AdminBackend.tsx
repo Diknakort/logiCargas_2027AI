@@ -458,6 +458,16 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
       ...selectedDockZone,
       [key]: rounded,
     };
+    if (key === 'textX' || key === 'x') {
+      updated.x = rounded;
+      updated.textX = rounded;
+      updated.dockX = rounded;
+    }
+    if (key === 'textY' || key === 'y') {
+      updated.y = rounded;
+      updated.textY = rounded;
+      updated.dockY = Math.round((rounded - 2.5) * 100) / 100;
+    }
     setSelectedDockZone(updated);
     const newZones = mapZones.map((z) => (z.id === updated.id ? updated : z));
     onUpdateMapZones(newZones);
@@ -467,6 +477,9 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
     if (!selectedDockZone) return;
     try {
       await apiClient.saveMapZone(selectedDockZone);
+      const newZones = mapZones.map((z) => (z.id === selectedDockZone.id ? selectedDockZone : z));
+      await apiClient.updateMapZones(newZones);
+      onUpdateMapZones(newZones);
       showMessage(`Cambios guardados en ${selectedDockZone.label}`);
     } catch {
       showMessage('Error al guardar zona en el backend', 'error');
@@ -493,6 +506,10 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
     }
 
     const code = newDockCode.trim().toUpperCase();
+    const isRight = newDockWall === 'right';
+    const isBottom = newDockWall === 'bottom';
+    const isLeft = newDockWall === 'left';
+
     const newZone: WarehouseZoneArea = {
       id: code,
       code,
@@ -500,8 +517,8 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
       wall: newDockWall,
       x: Number(newDockX),
       y: Number(newDockY),
-      width: 5.8,
-      height: 7.6,
+      width: isRight ? 22 : isBottom ? 14 : isLeft ? 20 : 15,
+      height: 3.4,
       textX: Number(newDockX),
       textY: Number(newDockY),
       dockX: Number(newDockX),
@@ -512,13 +529,17 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
 
     try {
       await apiClient.saveMapZone(newZone);
-      const updated = [...mapZones, newZone];
+      const exists = mapZones.some((z) => z.id === newZone.id || z.code === newZone.code);
+      const updated = exists
+        ? mapZones.map((z) => (z.id === newZone.id || z.code === newZone.code ? newZone : z))
+        : [...mapZones, newZone];
+      await apiClient.updateMapZones(updated);
       onUpdateMapZones(updated);
       setSelectedDockZone(newZone);
       setIsAddDockOpen(false);
       setNewDockCode('');
       setNewDockLabel('');
-      showMessage(`Muelle ${code} creado correctamente`);
+      showMessage(`Muelle ${code} creado y sincronizado con éxito`);
     } catch {
       showMessage('Error al crear nuevo muelle', 'error');
     }
@@ -529,6 +550,7 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
     try {
       await apiClient.deleteMapZone(id);
       const updated = mapZones.filter((z) => z.id !== id);
+      await apiClient.updateMapZones(updated);
       onUpdateMapZones(updated);
       if (selectedDockZone?.id === id) setSelectedDockZone(null);
       showMessage(`Muelle "${label}" eliminado`);
@@ -1330,9 +1352,21 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
                           <select
                             value={selectedDockZone.wall}
                             onChange={(e) => {
-                              const updated = { ...selectedDockZone, wall: e.target.value as any };
+                              const newWall = e.target.value as any;
+                              const isRight = newWall === 'right';
+                              const isBottom = newWall === 'bottom';
+                              const isLeft = newWall === 'left';
+                              const updated = { 
+                                ...selectedDockZone, 
+                                wall: newWall,
+                                width: isRight ? 22 : isBottom ? 14 : isLeft ? 20 : 15,
+                                height: 3.4,
+                              };
                               setSelectedDockZone(updated);
-                              onUpdateMapZones(mapZones.map((z) => (z.id === updated.id ? updated : z)));
+                              const newZones = mapZones.map((z) => (z.id === updated.id ? updated : z));
+                              onUpdateMapZones(newZones);
+                              apiClient.saveMapZone(updated);
+                              apiClient.updateMapZones(newZones);
                             }}
                             className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs"
                           >
@@ -1877,7 +1911,23 @@ export const AdminBackend: React.FC<AdminBackendProps> = ({
                 <label className="block text-slate-300 mb-1 font-semibold">Fachada / Lado</label>
                 <select
                   value={newDockWall}
-                  onChange={(e) => setNewDockWall(e.target.value as any)}
+                  onChange={(e) => {
+                    const wall = e.target.value as any;
+                    setNewDockWall(wall);
+                    if (wall === 'right') {
+                      setNewDockX(77);
+                      setNewDockY(35);
+                    } else if (wall === 'bottom') {
+                      setNewDockX(50);
+                      setNewDockY(80.5);
+                    } else if (wall === 'left') {
+                      setNewDockX(20);
+                      setNewDockY(50);
+                    } else if (wall === 'top') {
+                      setNewDockX(50);
+                      setNewDockY(10);
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
                 >
                   <option value="bottom">Fachada Sur (Pared Inferior)</option>

@@ -12,7 +12,7 @@ import {
   Boxes
 } from 'lucide-react';
 import { SyncConfig, AppUser } from '../types/logistics';
-import { ShieldCheck, LogOut, Settings, PackageMinus } from 'lucide-react';
+import { ShieldCheck, LogOut, Settings, PackageMinus, Building2, Printer } from 'lucide-react';
 
 interface HeaderProps {
   totalRoutes: number;
@@ -20,8 +20,8 @@ interface HeaderProps {
   syncConfig: SyncConfig;
   onOpenSyncModal: () => void;
   onOpenAddRouteModal: () => void;
-  activeView: 'dashboard' | 'envios' | 'desubicar' | 'map' | 'zones';
-  setActiveView: (view: 'dashboard' | 'envios' | 'desubicar' | 'map' | 'zones') => void;
+  activeView: 'dashboard' | 'envios' | 'desubicar' | 'entreplanta' | 'impresoras' | 'map' | 'zones';
+  setActiveView: (view: 'dashboard' | 'envios' | 'desubicar' | 'entreplanta' | 'impresoras' | 'map' | 'zones') => void;
   currentUser?: AppUser | null;
   onNavigateToBackend?: () => void;
   onLogout?: () => void;
@@ -121,6 +121,38 @@ export const Header: React.FC<HeaderProps> = ({
                 activeView === 'desubicar' ? 'bg-slate-950 text-amber-400' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
               }`}>
                 Barras
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveView('entreplanta')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                activeView === 'entreplanta'
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Entreplanta</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                activeView === 'entreplanta' ? 'bg-slate-950 text-amber-400' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+              }`}>
+                Piso 1
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveView('impresoras')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                activeView === 'impresoras'
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Printer className="w-4 h-4" />
+              <span>Impresoras</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                activeView === 'impresoras' ? 'bg-slate-950 text-amber-400' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}>
+                WiFi
               </span>
             </button>
             <button
